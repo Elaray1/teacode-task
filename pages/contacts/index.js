@@ -3,6 +3,7 @@ import Head from 'next/head'
 import { Center, Input, Loader, Text, Box, Group, Avatar, Checkbox } from '@mantine/core';
 import { IconSearch } from '@tabler/icons';
 import { useDebouncedValue } from '@mantine/hooks';
+import useVirtual from "react-cool-virtual";
 
 import { getContacts } from './api';
 
@@ -40,10 +41,17 @@ export default function Contacts() {
   
     return contacts.filter((contact) => {
       const fullName = `${contact.first_name} ${contact.last_name}`;
+      const reversedFullName = `${contact.last_name} ${contact.first_name}`;
   
-      return fullName.toLowerCase().includes(debouncedSearchValue.toLowerCase());
+      return fullName.toLowerCase().includes(debouncedSearchValue.toLowerCase())
+      || reversedFullName.toLowerCase().includes(debouncedSearchValue.toLowerCase());
     });
   }, [debouncedSearchValue, contacts]);
+
+  const { outerRef, innerRef, items } = useVirtual({
+    itemCount: filteredContacts.length,
+    resetScroll: true,
+  });
 
   useEffect(() => {
     const fetchContacts = async () => {
@@ -87,29 +95,40 @@ export default function Contacts() {
             size="lg"
             mt={30}
           />
-          {filteredContacts.length ?
-            <Box>
-              {filteredContacts.map((contact) => (
-                <Group
-                  key={contact.id}
-                  mt={20}
-                  onClick={() => onContactClick(contact.id)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <Avatar src={contact.avatar} radius="xl" size="lg" alt="avatar" />
+          <Box ref={outerRef} style={{ width: '500px', height: "100vh", overflow: "auto" }}>
+            {filteredContacts.length ?
+            <Box ref={innerRef}>
+              {items.map(({ index, size }) => {
+                const contact = filteredContacts[index];
 
-                  <Text>{contact.first_name} {contact.last_name}</Text>
+                if (!contact) {
+                  return null;
+                }
 
-                  <Checkbox
-                    checked={contact.checked}
-                    color="orange"
-                    radius="xl"
-                    size="md"
-                  />
-                </Group>
-              ))}
+                return (
+                  <Group
+                    key={contact.id}
+                    mt={20}
+                    onClick={() => onContactClick(contact.id)}
+                    style={{ cursor: 'pointer', height: size }}
+                  >
+                    <Avatar src={contact.avatar} radius="xl" size="lg" alt="avatar" />
+
+                    <Text>{contact.first_name} {contact.last_name}</Text>
+
+                    <Checkbox
+                      checked={contact.checked}
+                      color="orange"
+                      radius="xl"
+                      size="md"
+                      readOnly
+                    />
+                  </Group>
+                );
+              })}
             </Box>
             : <EmptyView />}
+          </Box>
         </Box>
       </Center>
     </>
